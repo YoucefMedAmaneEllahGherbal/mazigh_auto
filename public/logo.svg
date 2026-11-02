@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 80" fill="none" role="img" aria-label="MAZIGH AUTO Showroom Kecherid Auto">
+  <defs>
+    <linearGradient id="mzg-red-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#EA2B37" />
+      <stop offset="100%" stop-color="#D91E2A" />
+    </linearGradient>
+    <linearGradient id="mzg-dark-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1F1F1F" />
+      <stop offset="100%" stop-color="#0A0A0A" />
+    </linearGradient>
+  </defs>
+
+  <!-- Emblem / Geometric M-Shield -->
+  <g transform="translate(6, 10)">
+    <!-- Base Shield Outline / Plate -->
+    <path d="M5 6 L35 0 L55 10 L55 38 L32 58 L5 44 Z" fill="url(#mzg-dark-grad)" stroke="#374151" stroke-width="1.5"/>
+    <!-- Red Dynamic Wing Accent -->
+    <path d="M12 12 L33 6 L48 14 L42 22 L30 16 L18 20 Z" fill="url(#mzg-red-grad)"/>
+    <!-- Central Stylized M Lines -->
+    <path d="M15 36 L15 20 L27 34 L38 20 L38 36" stroke="#FFFFFF" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="27" cy="45" r="2.5" fill="#D91E2A" />
+  </g>
+
+  <!-- Brand Typography -->
+  <g transform="translate(76, 22)">
+    <!-- MAZIGH in bold white/silver -->
+    <text x="0" y="24" font-family="system-ui, -apple-system, sans-serif" font-size="27" font-weight="900" letter-spacing="1.5" fill="#FFFFFF">
+      MAZIGH
+    </text>
+    <!-- AUTO in punchy red -->
+    <text x="122" y="24" font-family="system-ui, -apple-system, sans-serif" font-size="27" font-weight="900" letter-spacing="1.5" fill="#D91E2A">
+      AUTO
+    </text>
+    <!-- Kecherid Subtitle -->
+    <text x="1" y="42" font-family="system-ui, -apple-system, sans-serif" font-size="9.5" font-weight="600" letter-spacing="2.8" fill="#9CA3AF">
+      SHOWROOM KECHERID AUTO
+    </text>
+  </g>
+</svg>
