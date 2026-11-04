@@ -9,25 +9,20 @@ export function VehicleAvailabilityState({ status }: VehicleAvailabilityStatePro
   const isEmpty = status === "empty";
 
   return (
-    <div className="bg-[#141414] border border-[#262626] rounded-2xl p-8 sm:p-12 text-center space-y-4">
+    <div className="empty-state" role={isEmpty ? undefined : "alert"}>
       {isEmpty ? (
-        <CarFront className="w-12 h-12 text-gray-500 mx-auto" aria-hidden="true" />
+        <CarFront className="h-10 w-10" aria-hidden="true" />
       ) : (
-        <CircleAlert className="w-12 h-12 text-gray-500 mx-auto" aria-hidden="true" />
+        <CircleAlert className="h-10 w-10" aria-hidden="true" />
       )}
-      <p className="text-sm sm:text-base text-gray-300">
+      <p>
         {isEmpty
           ? "Aucune voiture disponible pour le moment. Contactez-nous sur WhatsApp."
           : "Impossible de charger les véhicules pour le moment. Veuillez réessayer plus tard."}
       </p>
       {isEmpty && (
-        <a
-          href={buildGenericWhatsAppUrl()}
-          target="_blank"
-          rel="noreferrer"
-          className="whatsapp-button inline-flex items-center justify-center gap-2"
-        >
-          <MessageCircle className="w-4 h-4" aria-hidden="true" />
+        <a href={buildGenericWhatsAppUrl()} target="_blank" rel="noreferrer" className="whatsapp-button is-small">
+          <MessageCircle className="h-4 w-4" aria-hidden="true" />
           WhatsApp
         </a>
       )}
