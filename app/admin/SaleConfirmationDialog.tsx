@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { formatPriceDZD } from "@/app/data/cars";
 import type { CarFinance, CarSaleDetails } from "@/app/data/car-finances";
+import { AdminDialog } from "./ui";
 
 type SaleConfirmationDialogProps = {
   listedPrice: number;
@@ -85,153 +86,153 @@ export function SaleConfirmationDialog({
     });
   };
 
-  const fieldClass =
-    "w-full rounded-lg border border-[#333] bg-[#1E1E1E] p-2.5 text-sm text-white focus:border-[var(--primary)] focus:outline-none";
-
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center overflow-y-auto bg-black/80 p-4 backdrop-blur-sm">
-      <section
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="sale-dialog-title"
-        className="my-auto max-h-[calc(100vh-2rem)] w-full max-w-xl space-y-4 overflow-y-auto rounded-2xl border border-[#333] bg-[#1A1A1A] p-5 shadow-2xl sm:p-6"
-      >
-        <div>
-          <h2 id="sale-dialog-title" className="text-xl font-bold text-white">
-            Marquer comme vendue
-          </h2>
-          <p className="mt-1 text-sm text-gray-400">
-            Prix affiché : {formatPriceDZD(listedPrice)}
-          </p>
-        </div>
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          <label className="space-y-1.5 text-sm text-gray-300">
-            Prix de vente (DA)
+    <AdminDialog
+      title="Marquer comme vendue"
+      description={<>Prix affiché : {formatPriceDZD(listedPrice)}</>}
+      onClose={onCancel}
+      busy={pending}
+      wide
+      footer={
+        <>
+          <button type="button" disabled={pending} onClick={onCancel} className="adm-btn">
+            Annuler
+          </button>
+          <button type="button" disabled={pending} onClick={handleConfirm} className="adm-btn is-primary">
+            {pending ? "Enregistrement…" : "Confirmer la vente"}
+          </button>
+        </>
+      }
+    >
+      <div className="adm-grid cols-2">
+        <div className="adm-field">
+          <label htmlFor="sale-price" className="adm-label">
+            Prix de vente <span className="adm-req">*</span>
+          </label>
+          <div className="adm-input-affix">
             <input
+              id="sale-price"
               type="number"
+              inputMode="numeric"
               min="0"
               step="1"
               required
               value={salePrice}
               onChange={(event) => setSalePrice(event.target.value)}
-              className={fieldClass}
+              className="adm-input"
             />
+            <span>DA</span>
+          </div>
+        </div>
+        <div className="adm-field">
+          <label htmlFor="sale-date" className="adm-label">
+            Date de vente <span className="adm-req">*</span>
           </label>
-          <label className="space-y-1.5 text-sm text-gray-300">
-            Date de vente
-            <input
-              type="date"
-              required
-              value={saleDate}
-              onChange={(event) => setSaleDate(event.target.value)}
-              className={fieldClass}
-            />
+          <input
+            id="sale-date"
+            type="date"
+            required
+            value={saleDate}
+            onChange={(event) => setSaleDate(event.target.value)}
+            className="adm-input"
+          />
+        </div>
+        <div className="adm-field">
+          <label htmlFor="sale-purchase-price" className="adm-label">
+            Prix d&apos;achat
           </label>
-          <div className="space-y-1.5 text-sm text-gray-300">
-            <label htmlFor="sale-purchase-price">Prix d&apos;achat (DA)</label>
+          <div className="adm-input-affix">
             <input
               id="sale-purchase-price"
               type="number"
+              inputMode="numeric"
               min="0"
               step="1"
               disabled={purchaseUnknown}
               value={purchasePrice}
               onChange={(event) => setPurchasePrice(event.target.value)}
-              className={fieldClass}
+              className="adm-input"
             />
-            <label className="flex items-center gap-2 text-xs text-gray-400">
-              <input
-                type="checkbox"
-                checked={purchaseUnknown}
-                onChange={(event) => setPurchaseUnknown(event.target.checked)}
-              />
-              Je ne sais pas
-            </label>
+            <span>DA</span>
           </div>
-          <div className="space-y-1.5 text-sm text-gray-300">
-            <label htmlFor="sale-fees">Frais (DA)</label>
+          <label className="adm-check-inline">
+            <input
+              type="checkbox"
+              checked={purchaseUnknown}
+              onChange={(event) => setPurchaseUnknown(event.target.checked)}
+            />
+            Je ne sais pas
+          </label>
+        </div>
+        <div className="adm-field">
+          <label htmlFor="sale-fees" className="adm-label">
+            Frais
+          </label>
+          <div className="adm-input-affix">
             <input
               id="sale-fees"
               type="number"
+              inputMode="numeric"
               min="0"
               step="1"
               disabled={feesUnknown}
               value={fees}
               onChange={(event) => setFees(event.target.value)}
-              className={fieldClass}
+              className="adm-input"
             />
-            <label className="flex items-center gap-2 text-xs text-gray-400">
-              <input
-                type="checkbox"
-                checked={feesUnknown}
-                onChange={(event) => setFeesUnknown(event.target.checked)}
-              />
-              Je ne sais pas
-            </label>
+            <span>DA</span>
           </div>
-          <label className="space-y-1.5 text-sm text-gray-300 sm:col-span-2">
-            Acheteur (facultatif)
+          <label className="adm-check-inline">
             <input
-              value={buyer}
-              onChange={(event) => setBuyer(event.target.value)}
-              maxLength={200}
-              className={fieldClass}
+              type="checkbox"
+              checked={feesUnknown}
+              onChange={(event) => setFeesUnknown(event.target.checked)}
             />
-          </label>
-          <label className="space-y-1.5 text-sm text-gray-300 sm:col-span-2">
-            Notes privées (facultatif)
-            <textarea
-              value={notes}
-              onChange={(event) => setNotes(event.target.value)}
-              maxLength={5000}
-              rows={3}
-              className={fieldClass}
-            />
+            Je ne sais pas
           </label>
         </div>
+        <div className="adm-field adm-span-full">
+          <label htmlFor="sale-buyer" className="adm-label">
+            Acheteur <span className="adm-hint">(facultatif)</span>
+          </label>
+          <input
+            id="sale-buyer"
+            value={buyer}
+            onChange={(event) => setBuyer(event.target.value)}
+            maxLength={200}
+            className="adm-input"
+          />
+        </div>
+        <div className="adm-field adm-span-full">
+          <label htmlFor="sale-notes" className="adm-label">
+            Notes privées <span className="adm-hint">(facultatif)</span>
+          </label>
+          <textarea
+            id="sale-notes"
+            value={notes}
+            onChange={(event) => setNotes(event.target.value)}
+            maxLength={5000}
+            rows={3}
+            className="adm-input"
+          />
+        </div>
+      </div>
 
-        <p
-          className={`rounded-lg border border-[#333] bg-[#111] p-3 text-sm ${
-            profit === null
-              ? "text-gray-400"
-              : profit > 0
-                ? "text-emerald-400"
-                : profit < 0
-                  ? "text-red-400"
-                  : "text-white"
-          }`}
-          aria-live="polite"
-        >
-          Bénéfice prévisionnel :{" "}
-          {profit === null ? "coût manquant" : formatPriceDZD(profit)}
+      <div
+        className={`adm-profit ${
+          profit === null ? "is-unknown" : profit > 0 ? "is-positive" : profit < 0 ? "is-negative" : ""
+        }`}
+        aria-live="polite"
+      >
+        <span>Bénéfice prévisionnel</span>
+        <strong>{profit === null ? "coût manquant" : formatPriceDZD(profit)}</strong>
+      </div>
+
+      {error && (
+        <p className="adm-alert is-error" role="alert">
+          {error}
         </p>
-
-        {error && (
-          <p className="text-sm text-red-300" role="alert">
-            {error}
-          </p>
-        )}
-
-        <div className="flex flex-col-reverse justify-end gap-3 border-t border-[#333] pt-4 sm:flex-row">
-          <button
-            type="button"
-            disabled={pending}
-            onClick={onCancel}
-            className="secondary-button text-sm !px-4 !py-2"
-          >
-            Annuler
-          </button>
-          <button
-            type="button"
-            disabled={pending}
-            onClick={handleConfirm}
-            className="primary-button text-sm !px-4 !py-2"
-          >
-            {pending ? "Enregistrement..." : "Confirmer la vente"}
-          </button>
-        </div>
-      </section>
-    </div>
+      )}
+    </AdminDialog>
   );
 }

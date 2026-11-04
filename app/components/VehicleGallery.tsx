@@ -209,6 +209,7 @@ export function VehicleGallery({ images: rawImages, vehicleName }: VehicleGaller
       {isOpen && hasImages && (
         <div
           className="gallery-lightbox"
+          data-lenis-prevent
           role="dialog"
           aria-modal="true"
           aria-label={`Vue de ${vehicleName}`}

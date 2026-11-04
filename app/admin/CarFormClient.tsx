@@ -25,19 +25,25 @@ import { createCarAction, updateCarAction, type CarFormField } from "./car-actio
 import { SaleConfirmationDialog } from "./SaleConfirmationDialog";
 import { SaleReversalDialog } from "./SaleReversalDialog";
 import {
-  Car as CarIcon,
-  Settings2,
+  ArrowLeft,
+  ArrowRight,
   BadgeDollarSign,
   Camera,
-  Upload,
-  Sparkles,
+  Car as CarIcon,
   Check,
   CheckCheck,
-  Plus,
-  X,
+  CircleAlert,
   FileText,
-  SlidersHorizontal,
+  ImagePlus,
+  Loader2,
   LockKeyhole,
+  Plus,
+  Settings2,
+  SlidersHorizontal,
+  Sparkles,
+  Star,
+  Trash2,
+  X,
 } from "lucide-react";
 
 type CarFormImageItem = {
@@ -113,11 +119,31 @@ export function CarFormClient({ initialCar, initialFinance, mode }: CarFormClien
   // Errors & Feedback
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<CarFormField, string>>>({});
   const [generalError, setGeneralError] = useState("");
+  const formTopRef = useRef<HTMLDivElement>(null);
+
+  const showError = (message: string) => {
+    setGeneralError(message);
+    requestAnimationFrame(() =>
+      formTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
+    );
+  };
+
+  const errorProps = (field: CarFormField) =>
+    fieldErrors[field]
+      ? { "aria-invalid": true as const, "aria-describedby": `car-${field}-error` }
+      : {};
+
+  const renderFieldError = (field: CarFormField) =>
+    fieldErrors[field] ? (
+      <p id={`car-${field}-error`} className="adm-error-text" role="alert">
+        {fieldErrors[field]}
+      </p>
+    ) : null;
 
   const handleStatusChange = (nextStatus: CarStatus) => {
     if (nextStatus === "vendue" && statut !== "vendue") {
       if (mode === "create") {
-        setGeneralError("Créez d'abord le véhicule, puis confirmez sa vente depuis sa fiche.");
+        showError("Créez d'abord le véhicule, puis confirmez sa vente depuis sa fiche.");
         return;
       }
       setSaleDialogOpen(true);
@@ -314,7 +340,7 @@ export function CarFormClient({ initialCar, initialFinance, mode }: CarFormClien
 
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
-      setGeneralError("Veuillez renseigner les champs obligatoires signalés en rouge.");
+      showError("Veuillez corriger les champs signalés en rouge.");
       return;
     }
 
@@ -372,716 +398,667 @@ export function CarFormClient({ initialCar, initialFinance, mode }: CarFormClien
         router.refresh();
         router.replace(mode === "edit" ? `/admin?updated=${Date.now()}` : `/admin?created=${Date.now()}`);
       } else {
-        setGeneralError(result.message || "Une erreur est survenue lors de l'enregistrement.");
+        showError(result.message || "Une erreur est survenue lors de l'enregistrement.");
         if (result.fieldErrors) setFieldErrors(result.fieldErrors);
       }
     });
   };
 
+  const customOptions = selectedOptions.filter(
+    (o) => !(POPULAR_FEATURES as readonly string[]).includes(o),
+  );
+  const purchaseLocked = Boolean(saleDetails?.achat_inconnu && statut === "vendue");
+  const feesLocked = Boolean(saleDetails?.frais_inconnus && statut === "vendue");
+  const saving = isPending || isUploadingFiles;
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-8 max-w-4xl mx-auto pb-16">
+    <form onSubmit={handleSubmit} noValidate className="adm-stack">
+      <div ref={formTopRef} className="scroll-mt-20" />
       {generalError && (
-        <div className="p-4 bg-red-950/70 border border-red-500 rounded-xl text-red-200 text-sm">
+        <div className="adm-alert is-error" role="alert">
+          <CircleAlert aria-hidden="true" />
           {generalError}
         </div>
       )}
 
-      {/* SECTION 1: IDENTIFICATION */}
-      <div className="bg-[#141414] border border-[#262626] rounded-2xl p-6 space-y-6">
-        <h2 className="text-xl font-bold text-white border-b border-[#262626] pb-3 flex items-center gap-2">
-          <CarIcon className="w-5 h-5 text-[var(--primary)]" /> Identification du Véhicule
-        </h2>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          <div>
-            <label className="block text-xs font-semibold text-gray-300 mb-1.5">
-              Marque <span className="text-[var(--primary)]">*</span>
-            </label>
-            <input
-              type="text"
-              required
-              value={marque}
-              onChange={(e) => setMarque(e.target.value)}
-              placeholder="ex: Volkswagen, BMW, Renault"
-              className={`w-full bg-[#1E1E1E] border ${
-                fieldErrors.marque ? "border-red-500" : "border-[#333]"
-              } rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-[var(--primary)]`}
-            />
-            {fieldErrors.marque && <p className="text-xs text-red-400 mt-1">{fieldErrors.marque}</p>}
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-gray-300 mb-1.5">
-              Modèle <span className="text-[var(--primary)]">*</span>
-            </label>
-            <input
-              type="text"
-              required
-              value={modele}
-              onChange={(e) => setModele(e.target.value)}
-              placeholder="ex: Golf 8, 320d, Clio 4"
-              className={`w-full bg-[#1E1E1E] border ${
-                fieldErrors.modele ? "border-red-500" : "border-[#333]"
-              } rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-[var(--primary)]`}
-            />
-            {fieldErrors.modele && <p className="text-xs text-red-400 mt-1">{fieldErrors.modele}</p>}
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-gray-300 mb-1.5">Version / Finition</label>
-            <input
-              type="text"
-              value={version}
-              onChange={(e) => setVersion(e.target.value)}
-              placeholder="ex: R-Line, GTD, M Sport, GT Line"
-              className="w-full bg-[#1E1E1E] border border-[#333] rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-[var(--primary)]"
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
-          <div>
-            <label className="block text-xs font-semibold text-gray-300 mb-1.5">
-              Année <span className="text-[var(--primary)]">*</span>
-            </label>
-            <input
-              type="number"
-              required
-              min={1970}
-              max={SHOWROOM_CONFIG.copyrightYear + 2}
-              value={annee}
-              onChange={(e) => setAnnee(e.target.value)}
-              className="w-full bg-[#1E1E1E] border border-[#333] rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-[var(--primary)]"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-gray-300 mb-1.5">Carrosserie</label>
-            <select
-              value={typeCarrosserie}
-              onChange={(e) => setTypeCarrosserie(e.target.value)}
-              className="w-full bg-[#1E1E1E] border border-[#333] rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-[var(--primary)]"
-            >
-              {CARROSSERIE_OPTIONS.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-gray-300 mb-1.5">État</label>
-            <select
-              value={etat}
-              onChange={(e) => setEtat(e.target.value as CarCondition)}
-              className="w-full bg-[#1E1E1E] border border-[#333] rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-[var(--primary)]"
-            >
-              {ETAT_OPTIONS.map((e) => (
-                <option key={e} value={e}>{e}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-gray-300 mb-1.5">Papiers</label>
-            <select
-              value={papiers}
-              onChange={(e) => setPapiers(e.target.value)}
-              className="w-full bg-[#1E1E1E] border border-[#333] rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-[var(--primary)]"
-            >
-              {PAPIERS_OPTIONS.map((p) => (
-                <option key={p} value={p}>{p}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-      </div>
-
-      {/* SECTION 2: MOTORISATION & TECHNIQUE */}
-      <div className="bg-[#141414] border border-[#262626] rounded-2xl p-6 space-y-6">
-        <h2 className="text-xl font-bold text-white border-b border-[#262626] pb-3 flex items-center gap-2">
-          <Settings2 className="w-5 h-5 text-[var(--primary)]" /> Caractéristiques Techniques
-        </h2>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          <div>
-            <label className="block text-xs font-semibold text-gray-300 mb-1.5">
-              Kilométrage (km) <span className="text-[var(--primary)]">*</span>
-            </label>
-            <input
-              type="number"
-              required
-              min={0}
-              value={kilometrage}
-              onChange={(e) => setKilometrage(e.target.value)}
-              placeholder="ex: 45000"
-              className="w-full bg-[#1E1E1E] border border-[#333] rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-[var(--primary)]"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-gray-300 mb-1.5">
-              Carburant <span className="text-[var(--primary)]">*</span>
-            </label>
-            <select
-              value={carburant}
-              onChange={(e) => setCarburant(e.target.value as CarFuel)}
-              className="w-full bg-[#1E1E1E] border border-[#333] rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-[var(--primary)]"
-            >
-              {CARBURANT_OPTIONS.map((fuel) => (
-                <option key={fuel} value={fuel}>{fuel}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-gray-300 mb-1.5">
-              Boîte de vitesses <span className="text-[var(--primary)]">*</span>
-            </label>
-            <select
-              value={boite}
-              onChange={(e) => setBoite(e.target.value as CarTransmission)}
-              className="w-full bg-[#1E1E1E] border border-[#333] rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-[var(--primary)]"
-            >
-              {BOITE_OPTIONS.map((b) => (
-                <option key={b} value={b}>{b}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
-          <div>
-            <label className="block text-xs font-semibold text-gray-300 mb-1.5">Moteur</label>
-            <input
-              type="text"
-              value={moteur}
-              onChange={(e) => setMoteur(e.target.value)}
-              placeholder="ex: 2.0 TDI, 1.6 HDi"
-              className="w-full bg-[#1E1E1E] border border-[#333] rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-[var(--primary)]"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-gray-300 mb-1.5">Cylindrée</label>
-            <input
-              type="text"
-              value={cylindree}
-              onChange={(e) => setCylindree(e.target.value)}
-              placeholder="ex: 1.6L ou 1968 cc"
-              className="w-full bg-[#1E1E1E] border border-[#333] rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-[var(--primary)]"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-gray-300 mb-1.5">Puissance</label>
-            <input
-              type="text"
-              value={puissance}
-              onChange={(e) => setPuissance(e.target.value)}
-              placeholder="ex: 150 ch ou 7 CV"
-              className="w-full bg-[#1E1E1E] border border-[#333] rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-[var(--primary)]"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-gray-300 mb-1.5">Couleur</label>
-            <input
-              type="text"
-              value={couleur}
-              onChange={(e) => setCouleur(e.target.value)}
-              placeholder="ex: Noir, Gris Nardo, Blanc"
-              className="w-full bg-[#1E1E1E] border border-[#333] rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-[var(--primary)]"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* SECTION 3: PRIX, STATUT & PUBLICATION */}
-      <div className="bg-[#141414] border border-[#262626] rounded-2xl p-6 space-y-6">
-        <h2 className="text-xl font-bold text-white border-b border-[#262626] pb-3 flex items-center gap-2">
-          <BadgeDollarSign className="w-5 h-5 text-[var(--primary)]" /> Prix & Publication
-        </h2>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          <div>
-            <label className="block text-xs font-semibold text-gray-300 mb-1.5">
-              Prix (en Dinars Algériens - DA) <span className="text-[var(--primary)]">*</span>
-            </label>
-            <input
-              type="number"
-              required
-              min={0}
-              value={prix}
-              onChange={(e) => setPrix(e.target.value)}
-              placeholder="ex: 3500000"
-              className="w-full bg-[#1E1E1E] border border-[#333] rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-[var(--primary)] font-bold"
-            />
-          </div>
-
-          <div className="flex items-center gap-3 pt-6">
-            <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-300">
-              <input
-                type="checkbox"
-                checked={negotiable}
-                onChange={(e) => setNegotiable(e.target.checked)}
-                className="w-4 h-4 rounded text-[var(--primary)] focus:ring-[var(--primary)]"
-              />
-              <span>Prix Négociable</span>
-            </label>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-gray-300 mb-1.5">
-              Statut d&apos;affichage <span className="text-[var(--primary)]">*</span>
-            </label>
-            <select
-              value={statut}
-              onChange={(e) => handleStatusChange(e.target.value as CarStatus)}
-              className="w-full bg-[#1E1E1E] border border-[#333] rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-[var(--primary)]"
-            >
-              <option value="disponible">Disponible (visible sur le site)</option>
-              <option value="reservee">Réservée (badge réservée)</option>
-              <option value="vendue" disabled={mode === "create"}>
-                Vendue (badge vendue)
-              </option>
-              <option value="brouillon">Brouillon (invisible au public)</option>
-            </select>
-            {fieldErrors.statut && (
-              <p className="mt-1 text-xs text-red-400" role="alert">{fieldErrors.statut}</p>
-            )}
-          </div>
-        </div>
-
-        <div className="pt-2">
-          <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-300">
-            <input
-              type="checkbox"
-              checked={isFeatured}
-              onChange={(e) => setIsFeatured(e.target.checked)}
-              className="w-4 h-4 rounded text-yellow-400 focus:ring-yellow-400"
-            />
-            <span className="font-semibold text-yellow-300">⭐ Afficher en vedette sur la page d&apos;accueil</span>
-          </label>
-        </div>
-      </div>
-
-      {/* SECTION 4: INFORMATIONS FINANCIÈRES PRIVÉES */}
-      <div className="space-y-5 rounded-2xl border border-amber-900/50 bg-[#141414] p-6">
-        <h2 className="flex items-center gap-2 border-b border-[#262626] pb-3 text-xl font-bold text-white">
-          <LockKeyhole className="h-5 w-5 text-amber-400" />
-          Informations privées (invisibles pour les clients)
-        </h2>
-        <p className="text-xs text-gray-400">
-          Ces données sont réservées à l&apos;administration et ne sont jamais affichées sur le site public.
-        </p>
-        <div className="grid gap-5 md:grid-cols-2">
-          <div className="space-y-1.5 text-xs font-semibold text-gray-300">
-            <label htmlFor="car-purchase-price">Prix d&apos;achat (DA)</label>
-            <input
-              id="car-purchase-price"
-              type="number"
-              min="0"
-              step="1"
-              disabled={Boolean(saleDetails?.achat_inconnu && statut === "vendue")}
-              value={prixAchat}
-              onChange={(event) => {
-                const value = event.target.value;
-                setPrixAchat(value);
-                setSaleDetails((previous) =>
-                  previous
-                    ? {
-                        ...previous,
-                        prix_achat: value === "" ? null : Number(value),
-                        achat_inconnu: value === "" ? previous.achat_inconnu : false,
-                      }
-                    : previous,
-                );
-              }}
-              className="w-full rounded-lg border border-[#333] bg-[#1E1E1E] p-2.5 text-sm text-white focus:border-[var(--primary)] focus:outline-none"
-            />
-            {fieldErrors.prix_achat && (
-              <span className="block text-xs text-red-400" role="alert">{fieldErrors.prix_achat}</span>
-            )}
-            {saleDetails && statut === "vendue" && (
-              <label className="flex items-center gap-2 text-xs font-normal text-gray-400">
-                <input
-                  type="checkbox"
-                  checked={saleDetails.achat_inconnu}
-                  onChange={(event) => {
-                    const checked = event.target.checked;
-                    if (checked) setPrixAchat("");
-                    setSaleDetails((previous) =>
-                      previous
-                        ? {
-                            ...previous,
-                            achat_inconnu: checked,
-                            prix_achat: checked ? null : previous.prix_achat,
-                          }
-                        : previous,
-                    );
-                  }}
-                />
-                Je ne sais pas
-              </label>
-            )}
-          </div>
-          <div className="space-y-1.5 text-xs font-semibold text-gray-300">
-            <label htmlFor="car-fees">Frais (réparations, papiers) (DA)</label>
-            <input
-              id="car-fees"
-              type="number"
-              min="0"
-              step="1"
-              disabled={Boolean(saleDetails?.frais_inconnus && statut === "vendue")}
-              value={frais}
-              onChange={(event) => {
-                const value = event.target.value;
-                setFrais(value);
-                setSaleDetails((previous) =>
-                  previous
-                    ? {
-                        ...previous,
-                        frais: value === "" ? null : Number(value),
-                        frais_inconnus: value === "" ? previous.frais_inconnus : false,
-                      }
-                    : previous,
-                );
-              }}
-              className="w-full rounded-lg border border-[#333] bg-[#1E1E1E] p-2.5 text-sm text-white focus:border-[var(--primary)] focus:outline-none"
-            />
-            {fieldErrors.frais && (
-              <span className="block text-xs text-red-400" role="alert">{fieldErrors.frais}</span>
-            )}
-            {saleDetails && statut === "vendue" && (
-              <label className="flex items-center gap-2 text-xs font-normal text-gray-400">
-                <input
-                  type="checkbox"
-                  checked={saleDetails.frais_inconnus}
-                  onChange={(event) => {
-                    const checked = event.target.checked;
-                    if (checked) setFrais("");
-                    setSaleDetails((previous) =>
-                      previous
-                        ? {
-                            ...previous,
-                            frais_inconnus: checked,
-                            frais: checked ? null : previous.frais,
-                          }
-                        : previous,
-                    );
-                  }}
-                />
-                Je ne sais pas
-              </label>
-            )}
-          </div>
-          <label className="space-y-1.5 text-xs font-semibold text-gray-300 md:col-span-2">
-            Notes privées
-            <textarea
-              rows={3}
-              maxLength={5000}
-              value={financeNotes}
-              onChange={(event) => {
-                setFinanceNotes(event.target.value);
-                setSaleDetails((previous) =>
-                  previous ? { ...previous, notes: event.target.value } : previous,
-                );
-              }}
-              className="w-full rounded-lg border border-[#333] bg-[#1E1E1E] p-2.5 text-sm text-white focus:border-[var(--primary)] focus:outline-none"
-            />
-            {fieldErrors.finance_notes && (
-              <span className="block text-xs text-red-400" role="alert">{fieldErrors.finance_notes}</span>
-            )}
-          </label>
-        </div>
-      </div>
-
-      {/* SECTION 5: PHOTOS & GALERIE */}
-      <div className="bg-[#141414] border border-[#262626] rounded-2xl p-6 space-y-6">
-        <h2 className="text-xl font-bold text-white border-b border-[#262626] pb-3 flex items-center justify-between">
-          <span className="flex items-center gap-2">
-            <Camera className="w-5 h-5 text-[var(--primary)]" /> Ajouter des photos ({images.length})
-          </span>
-          <span className="text-xs text-gray-400 font-normal">Formats : JPG, PNG, WebP (max 10 Mo)</span>
-        </h2>
-
-        <div
-          onDragOver={(e) => {
-            e.preventDefault();
-            setIsDraggingFiles(true);
-          }}
-          onDragLeave={() => setIsDraggingFiles(false)}
-          onDrop={handleFileDrop}
-          className={`border-2 border-dashed rounded-xl p-6 text-center space-y-3 bg-[#111] transition-colors ${
-            isDraggingFiles ? "border-[var(--primary)]" : "border-[#333] hover:border-[var(--primary)]"
-          }`}
-        >
-          <input
-            type="file"
-            ref={fileInputRef}
-            multiple
-            accept="image/jpeg,image/png,image/webp"
-            onChange={handleDeviceFilesSelected}
-            className="hidden"
-            id="car-device-file-input"
-          />
-
-          <div className="space-y-2">
-            <p className="text-sm text-gray-300 font-medium">
-              Déposez vos photos ici ou choisissez-les depuis votre appareil
-            </p>
-            <p className="text-xs text-gray-500">
-              Compression automatique avant l&apos;envoi vers Supabase Storage pour un affichage ultra rapide
-            </p>
-          </div>
-
-          <label
-            htmlFor="car-device-file-input"
-            className={`primary-button cursor-pointer inline-flex items-center gap-2 text-sm !py-2.5 !px-5 ${
-              isUploadingFiles ? "opacity-50 pointer-events-none" : ""
-            }`}
-          >
-            {isUploadingFiles ? (
-              "Envoi et compression en cours..."
-            ) : (
-              <>
-                <Upload className="w-4 h-4 mr-1" />
-                Choisir des photos
-              </>
-            )}
-          </label>
-        </div>
-
-        {fieldErrors.images && (
-          <p className="text-xs text-red-400" role="alert">{fieldErrors.images}</p>
-        )}
-
-        {/* Uploaded Gallery Grid */}
-        {images.length > 0 && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 pt-4">
-            {images.map((img, index) => (
-              <div
-                key={img.id}
-                className={`relative rounded-xl overflow-hidden bg-black border-2 transition-all group ${
-                  img.is_cover ? "border-[var(--primary)] ring-2 ring-[var(--primary)]/30" : "border-[#333]"
-                }`}
-              >
-                <div className="aspect-video relative">
-                  <CarImage
-                    src={img.url}
-                    alt={`Vue ${index + 1}`}
-                    fill
-                    className="w-full h-full object-cover"
+      <div className="adm-form-layout">
+        {/* ============ MAIN COLUMN ============ */}
+        <div className="adm-stack">
+          {/* Identification */}
+          <section className="adm-card">
+            <header className="adm-card-header">
+              <h2 className="adm-card-title">
+                <CarIcon className="h-[18px] w-[18px]" aria-hidden="true" /> Identification
+              </h2>
+            </header>
+            <div className="adm-card-body adm-stack">
+              <div className="adm-grid cols-3">
+                <div className="adm-field">
+                  <label htmlFor="car-marque" className="adm-label">
+                    Marque <span className="adm-req">*</span>
+                  </label>
+                  <input
+                    id="car-marque"
+                    type="text"
+                    required
+                    value={marque}
+                    onChange={(e) => setMarque(e.target.value)}
+                    placeholder="ex : Volkswagen"
+                    className="adm-input"
+                    {...errorProps("marque")}
+                  />
+                  {renderFieldError("marque")}
+                </div>
+                <div className="adm-field">
+                  <label htmlFor="car-modele" className="adm-label">
+                    Modèle <span className="adm-req">*</span>
+                  </label>
+                  <input
+                    id="car-modele"
+                    type="text"
+                    required
+                    value={modele}
+                    onChange={(e) => setModele(e.target.value)}
+                    placeholder="ex : Golf 8"
+                    className="adm-input"
+                    {...errorProps("modele")}
+                  />
+                  {renderFieldError("modele")}
+                </div>
+                <div className="adm-field">
+                  <label htmlFor="car-version" className="adm-label">Version / finition</label>
+                  <input
+                    id="car-version"
+                    type="text"
+                    value={version}
+                    onChange={(e) => setVersion(e.target.value)}
+                    placeholder="ex : R-Line, GT Line"
+                    className="adm-input"
                   />
                 </div>
+              </div>
 
-                {/* Cover badge */}
-                {img.is_cover && (
-                  <span className="absolute top-2 left-2 bg-[var(--primary)] text-white text-[10px] font-extrabold px-2 py-0.5 rounded shadow">
-                    Couverture
-                  </span>
-                )}
-
-                {/* Controls Overlay */}
-                <div className="p-2 bg-[#1A1A1A] flex items-center justify-between text-xs border-t border-[#333]">
-                  <div className="flex gap-1">
-                    <button
-                      type="button"
-                      disabled={index === 0}
-                      onClick={() => moveImage(index, "up")}
-                      className="px-1.5 py-0.5 bg-[#2A2A2A] rounded hover:bg-[#333] disabled:opacity-30"
-                      title="Déplacer vers la gauche"
-                    >
-                      ←
-                    </button>
-                    <button
-                      type="button"
-                      disabled={index === images.length - 1}
-                      onClick={() => moveImage(index, "down")}
-                      className="px-1.5 py-0.5 bg-[#2A2A2A] rounded hover:bg-[#333] disabled:opacity-30"
-                      title="Déplacer vers la droite"
-                    >
-                      →
-                    </button>
-                  </div>
-
-                  {!img.is_cover && (
-                    <button
-                      type="button"
-                      onClick={() => setCoverImage(img.id)}
-                      className="text-[10px] text-gray-300 hover:text-[var(--primary)] underline"
-                    >
-                      Définir couv.
-                    </button>
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={() => removeImage(img.id)}
-                    className="text-red-400 hover:text-red-300 font-bold p-1 rounded hover:bg-red-950/40"
-                    title="Supprimer la photo"
-                    aria-label="Supprimer la photo"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
+              <div className="adm-grid cols-4">
+                <div className="adm-field">
+                  <label htmlFor="car-annee" className="adm-label">
+                    Année <span className="adm-req">*</span>
+                  </label>
+                  <input
+                    id="car-annee"
+                    type="number"
+                    inputMode="numeric"
+                    required
+                    min={1970}
+                    max={SHOWROOM_CONFIG.copyrightYear + 2}
+                    value={annee}
+                    onChange={(e) => setAnnee(e.target.value)}
+                    className="adm-input"
+                    {...errorProps("annee")}
+                  />
+                  {renderFieldError("annee")}
+                </div>
+                <div className="adm-field">
+                  <label htmlFor="car-carrosserie" className="adm-label">Carrosserie</label>
+                  <select id="car-carrosserie" value={typeCarrosserie} onChange={(e) => setTypeCarrosserie(e.target.value)} className="adm-input">
+                    {CARROSSERIE_OPTIONS.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="adm-field">
+                  <label htmlFor="car-etat" className="adm-label">État</label>
+                  <select id="car-etat" value={etat} onChange={(e) => setEtat(e.target.value as CarCondition)} className="adm-input">
+                    {ETAT_OPTIONS.map((option) => (
+                      <option key={option} value={option}>{option}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="adm-field">
+                  <label htmlFor="car-papiers" className="adm-label">Papiers</label>
+                  <select id="car-papiers" value={papiers} onChange={(e) => setPapiers(e.target.value)} className="adm-input">
+                    {PAPIERS_OPTIONS.map((p) => (
+                      <option key={p} value={p}>{p}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
-            ))}
-          </div>
-        )}
-      </div>
+            </div>
+          </section>
 
-      {/* SECTION 6: OPTIONS & ÉQUIPEMENTS */}
-      <div className="bg-[#141414] border border-[#262626] rounded-2xl p-6 space-y-6">
-        <h2 className="text-xl font-bold text-white border-b border-[#262626] pb-3 flex items-center gap-2">
-          <Sparkles className="w-5 h-5 text-[var(--primary)]" /> Équipements & Options
-        </h2>
+          {/* Technique */}
+          <section className="adm-card">
+            <header className="adm-card-header">
+              <h2 className="adm-card-title">
+                <Settings2 className="h-[18px] w-[18px]" aria-hidden="true" /> Caractéristiques techniques
+              </h2>
+            </header>
+            <div className="adm-card-body adm-stack">
+              <div className="adm-grid cols-3">
+                <div className="adm-field">
+                  <label htmlFor="car-km" className="adm-label">
+                    Kilométrage <span className="adm-req">*</span>
+                  </label>
+                  <div className="adm-input-affix">
+                    <input
+                      id="car-km"
+                      type="number"
+                      inputMode="numeric"
+                      required
+                      min={0}
+                      value={kilometrage}
+                      onChange={(e) => setKilometrage(e.target.value)}
+                      placeholder="45000"
+                      className="adm-input"
+                      {...errorProps("kilometrage")}
+                    />
+                    <span>km</span>
+                  </div>
+                  {renderFieldError("kilometrage")}
+                </div>
+                <div className="adm-field">
+                  <label htmlFor="car-carburant" className="adm-label">
+                    Carburant <span className="adm-req">*</span>
+                  </label>
+                  <select id="car-carburant" value={carburant} onChange={(e) => setCarburant(e.target.value as CarFuel)} className="adm-input">
+                    {CARBURANT_OPTIONS.map((fuel) => (
+                      <option key={fuel} value={fuel}>{fuel}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="adm-field">
+                  <label htmlFor="car-boite" className="adm-label">
+                    Boîte de vitesses <span className="adm-req">*</span>
+                  </label>
+                  <select id="car-boite" value={boite} onChange={(e) => setBoite(e.target.value as CarTransmission)} className="adm-input">
+                    {BOITE_OPTIONS.map((b) => (
+                      <option key={b} value={b}>{b}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
 
-        <button
-          type="button"
-          onClick={toggleAllSuggestedOptions}
-          className="secondary-button min-h-11 touch-manipulation text-xs !py-2 !px-3 inline-flex items-center gap-1.5"
-        >
-          {allSuggestedOptionsSelected ? (
-            <>
-              <X className="w-4 h-4" />
-              Tout désélectionner
-            </>
-          ) : (
-            <>
-              <CheckCheck className="w-4 h-4" />
-              Toutes les options
-            </>
-          )}
-        </button>
+              <div className="adm-grid cols-4">
+                <div className="adm-field">
+                  <label htmlFor="car-moteur" className="adm-label">Moteur</label>
+                  <input id="car-moteur" type="text" value={moteur} onChange={(e) => setMoteur(e.target.value)} placeholder="ex : 2.0 TDI" className="adm-input" />
+                </div>
+                <div className="adm-field">
+                  <label htmlFor="car-cylindree" className="adm-label">Cylindrée</label>
+                  <input id="car-cylindree" type="text" value={cylindree} onChange={(e) => setCylindree(e.target.value)} placeholder="ex : 1968 cc" className="adm-input" />
+                </div>
+                <div className="adm-field">
+                  <label htmlFor="car-puissance" className="adm-label">Puissance</label>
+                  <input id="car-puissance" type="text" value={puissance} onChange={(e) => setPuissance(e.target.value)} placeholder="ex : 150 ch" className="adm-input" />
+                </div>
+                <div className="adm-field">
+                  <label htmlFor="car-couleur" className="adm-label">Couleur</label>
+                  <input id="car-couleur" type="text" value={couleur} onChange={(e) => setCouleur(e.target.value)} placeholder="ex : Gris Nardo" className="adm-input" />
+                </div>
+              </div>
+            </div>
+          </section>
 
-        {/* Chips Grid */}
-        <div className="flex flex-wrap gap-2.5">
-          {POPULAR_FEATURES.map((opt) => {
-            const selected = selectedOptions.includes(opt);
-            return (
-              <button
-                key={opt}
-                type="button"
-                onClick={() => toggleOption(opt)}
-                className={`min-h-11 touch-manipulation text-xs font-medium px-3 py-1.5 rounded-full border transition-colors cursor-pointer inline-flex items-center gap-1 ${
-                  selected
-                    ? "bg-[var(--primary)] border-[var(--primary)] text-white font-bold"
-                    : "bg-[#1E1E1E] border-[#333] text-gray-300 hover:border-gray-500"
-                }`}
+          {/* Photos */}
+          <section className="adm-card">
+            <header className="adm-card-header">
+              <div>
+                <h2 className="adm-card-title">
+                  <Camera className="h-[18px] w-[18px]" aria-hidden="true" /> Photos
+                  <span className="text-sm font-normal text-[var(--adm-subtle)]">({images.length})</span>
+                </h2>
+                <p className="adm-card-desc">La photo de couverture est affichée en premier sur le site.</p>
+              </div>
+            </header>
+            <div className="adm-card-body">
+              <div
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setIsDraggingFiles(true);
+                }}
+                onDragLeave={() => setIsDraggingFiles(false)}
+                onDrop={handleFileDrop}
+                className={`adm-dropzone${isDraggingFiles ? " is-dragging" : ""}`}
               >
-                {selected ? <Check className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5 text-gray-400" />}
-                <span>{opt}</span>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  multiple
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={handleDeviceFilesSelected}
+                  className="sr-only"
+                  id="car-device-file-input"
+                />
+                {isUploadingFiles ? (
+                  <Loader2 className="h-7 w-7 animate-spin" aria-hidden="true" />
+                ) : (
+                  <ImagePlus className="h-7 w-7" aria-hidden="true" />
+                )}
+                <p>{isUploadingFiles ? "Compression et envoi en cours…" : "Glissez vos photos ici"}</p>
+                <p className="adm-hint">JPG, PNG ou WebP — 10 Mo max. Compression automatique.</p>
+                <label
+                  htmlFor="car-device-file-input"
+                  className={`adm-btn is-sm${isUploadingFiles ? " pointer-events-none opacity-50" : ""}`}
+                >
+                  Choisir des fichiers
+                </label>
+              </div>
+
+              {renderFieldError("images")}
+
+              {images.length > 0 && (
+                <ul className="adm-images">
+                  {images.map((img, index) => (
+                    <li key={img.id} className={`adm-image${img.is_cover ? " is-cover" : ""}`}>
+                      <div className="adm-image-media">
+                        <CarImage src={img.url} alt={`Photo ${index + 1}`} fill sizes="200px" className="object-cover" />
+                        {img.is_cover && <span className="adm-image-badge">Couverture</span>}
+                        <span className="adm-image-index">{index + 1}</span>
+                      </div>
+                      <div className="adm-image-bar">
+                        <div className="flex gap-1">
+                          <button
+                            type="button"
+                            disabled={index === 0}
+                            onClick={() => moveImage(index, "up")}
+                            className="adm-icon-btn is-ghost"
+                            aria-label="Déplacer avant"
+                            title="Déplacer avant"
+                          >
+                            <ArrowLeft className="h-4 w-4" />
+                          </button>
+                          <button
+                            type="button"
+                            disabled={index === images.length - 1}
+                            onClick={() => moveImage(index, "down")}
+                            className="adm-icon-btn is-ghost"
+                            aria-label="Déplacer après"
+                            title="Déplacer après"
+                          >
+                            <ArrowRight className="h-4 w-4" />
+                          </button>
+                        </div>
+                        <div className="flex gap-1">
+                          {!img.is_cover && (
+                            <button
+                              type="button"
+                              onClick={() => setCoverImage(img.id)}
+                              className="adm-icon-btn is-ghost"
+                              aria-label="Définir comme couverture"
+                              title="Définir comme couverture"
+                            >
+                              <Star className="h-4 w-4" />
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => removeImage(img.id)}
+                            className="adm-icon-btn is-ghost is-danger"
+                            aria-label="Supprimer la photo"
+                            title="Supprimer la photo"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </section>
+
+          {/* Équipements */}
+          <section className="adm-card">
+            <header className="adm-card-header">
+              <h2 className="adm-card-title">
+                <Sparkles className="h-[18px] w-[18px]" aria-hidden="true" /> Équipements & options
+              </h2>
+              <button type="button" onClick={toggleAllSuggestedOptions} className="adm-btn is-sm is-ghost">
+                {allSuggestedOptionsSelected ? (
+                  <>
+                    <X className="h-4 w-4" aria-hidden="true" /> Tout retirer
+                  </>
+                ) : (
+                  <>
+                    <CheckCheck className="h-4 w-4" aria-hidden="true" /> Tout cocher
+                  </>
+                )}
               </button>
-            );
-          })}
+            </header>
+            <div className="adm-card-body adm-stack">
+              <div className="adm-options">
+                {POPULAR_FEATURES.map((opt) => {
+                  const selected = selectedOptions.includes(opt);
+                  return (
+                    <button key={opt} type="button" aria-pressed={selected} onClick={() => toggleOption(opt)} className="adm-option">
+                      {selected ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : <Plus className="h-3.5 w-3.5" aria-hidden="true" />}
+                      {opt}
+                    </button>
+                  );
+                })}
+                {customOptions.map((custom) => (
+                  <button
+                    key={custom}
+                    type="button"
+                    aria-pressed
+                    onClick={() => toggleOption(custom)}
+                    className="adm-option is-custom"
+                    aria-label={`Retirer ${custom}`}
+                  >
+                    {custom}
+                    <X className="h-3.5 w-3.5" aria-hidden="true" />
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex max-w-md gap-2">
+                <label htmlFor="car-custom-option" className="sr-only">
+                  Option personnalisée
+                </label>
+                <input
+                  id="car-custom-option"
+                  type="text"
+                  value={customOptionInput}
+                  onChange={(e) => setCustomOptionInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      addCustomOption();
+                    }
+                  }}
+                  placeholder="Ajouter une option personnalisée…"
+                  className="adm-input"
+                />
+                <button type="button" onClick={addCustomOption} className="adm-btn">
+                  Ajouter
+                </button>
+              </div>
+            </div>
+          </section>
+
+          {/* Description */}
+          <section className="adm-card">
+            <header className="adm-card-header">
+              <div>
+                <h2 className="adm-card-title">
+                  <FileText className="h-[18px] w-[18px]" aria-hidden="true" /> Description & état
+                </h2>
+                <p className="adm-card-desc">
+                  Retouches de peinture (sbigha), pièces changées, carnet d&apos;entretien, pneus…
+                </p>
+              </div>
+            </header>
+            <div className="adm-card-body">
+              <label htmlFor="car-description" className="sr-only">
+                Description
+              </label>
+              <textarea
+                id="car-description"
+                rows={6}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Ex : Première main, carnet à jour. Zéro retouche, pneus neufs. Rien à prévoir…"
+                className="adm-input"
+              />
+            </div>
+          </section>
+
+          {/* Advanced */}
+          <details className="adm-card adm-details" open={Boolean(fieldErrors.slug) || undefined}>
+            <summary className="adm-card-header">
+              <h2 className="adm-card-title">
+                <SlidersHorizontal className="h-[18px] w-[18px]" aria-hidden="true" /> Paramètres avancés
+              </h2>
+              <span className="adm-hint">Optionnel</span>
+            </summary>
+            <div className="adm-card-body">
+              <div className="adm-field">
+                <label htmlFor="car-slug" className="adm-label">Identifiant d&apos;URL (slug)</label>
+                <input
+                  id="car-slug"
+                  type="text"
+                  value={slug}
+                  onChange={(e) => setSlug(e.target.value)}
+                  placeholder="volkswagen-golf-8-2022"
+                  className="adm-input is-mono"
+                  {...errorProps("slug")}
+                />
+                {renderFieldError("slug")}
+                <p className="adm-hint">Laissez vide pour le générer depuis la marque, le modèle et l&apos;année.</p>
+              </div>
+            </div>
+          </details>
         </div>
 
-        {/* Custom Option Input */}
-        <div className="flex gap-2 max-w-md pt-2">
-          <input
-            type="text"
-            value={customOptionInput}
-            onChange={(e) => setCustomOptionInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                addCustomOption();
-              }
-            }}
-            placeholder="Ajouter une option personnalisée..."
-            className="flex-1 bg-[#1E1E1E] border border-[#333] rounded-lg p-2 text-xs text-white focus:outline-none focus:border-[var(--primary)]"
-          />
-          <button
-            type="button"
-            onClick={addCustomOption}
-            className="secondary-button min-h-11 touch-manipulation text-xs !py-2 !px-3"
-          >
-            Ajouter
+        {/* ============ SIDEBAR ============ */}
+        <aside className="adm-form-aside">
+          <section className="adm-card">
+            <header className="adm-card-header">
+              <h2 className="adm-card-title">
+                <BadgeDollarSign className="h-[18px] w-[18px]" aria-hidden="true" /> Prix & publication
+              </h2>
+            </header>
+            <div className="adm-card-body adm-stack">
+              <div className="adm-field">
+                <label htmlFor="car-prix" className="adm-label">
+                  Prix affiché <span className="adm-req">*</span>
+                </label>
+                <div className="adm-input-affix">
+                  <input
+                    id="car-prix"
+                    type="number"
+                    inputMode="numeric"
+                    required
+                    min={0}
+                    value={prix}
+                    onChange={(e) => setPrix(e.target.value)}
+                    placeholder="3500000"
+                    className="adm-input font-semibold"
+                    {...errorProps("prix")}
+                  />
+                  <span>DA</span>
+                </div>
+                {renderFieldError("prix")}
+              </div>
+
+              <div className="adm-field">
+                <label htmlFor="car-statut" className="adm-label">
+                  Statut <span className="adm-req">*</span>
+                </label>
+                <select
+                  id="car-statut"
+                  value={statut}
+                  onChange={(e) => handleStatusChange(e.target.value as CarStatus)}
+                  className="adm-input"
+                  {...errorProps("statut")}
+                >
+                  <option value="disponible">Disponible — visible</option>
+                  <option value="reservee">Réservée — badge réservée</option>
+                  <option value="vendue" disabled={mode === "create"}>
+                    Vendue — badge vendue
+                  </option>
+                  <option value="brouillon">Brouillon — masquée</option>
+                </select>
+                {renderFieldError("statut")}
+              </div>
+
+              <label className="adm-check">
+                <input type="checkbox" checked={negotiable} onChange={(e) => setNegotiable(e.target.checked)} />
+                <span>
+                  <strong>Prix négociable</strong>
+                  <span>Affiche le badge « Négociable ».</span>
+                </span>
+              </label>
+
+              <label className="adm-check">
+                <input type="checkbox" checked={isFeatured} onChange={(e) => setIsFeatured(e.target.checked)} />
+                <span>
+                  <strong>En vedette</strong>
+                  <span>Mise en avant sur la page d&apos;accueil.</span>
+                </span>
+              </label>
+            </div>
+          </section>
+
+          <section className="adm-card is-private">
+            <header className="adm-card-header">
+              <div>
+                <h2 className="adm-card-title">
+                  <LockKeyhole className="h-[18px] w-[18px]" aria-hidden="true" /> Informations privées
+                </h2>
+                <p className="adm-card-desc">Jamais affichées sur le site public.</p>
+              </div>
+            </header>
+            <div className="adm-card-body adm-stack">
+              <div className="adm-field">
+                <label htmlFor="car-purchase-price" className="adm-label">Prix d&apos;achat</label>
+                <div className="adm-input-affix">
+                  <input
+                    id="car-purchase-price"
+                    type="number"
+                    inputMode="numeric"
+                    min="0"
+                    step="1"
+                    disabled={purchaseLocked}
+                    value={prixAchat}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      setPrixAchat(value);
+                      setSaleDetails((previous) =>
+                        previous
+                          ? {
+                              ...previous,
+                              prix_achat: value === "" ? null : Number(value),
+                              achat_inconnu: value === "" ? previous.achat_inconnu : false,
+                            }
+                          : previous,
+                      );
+                    }}
+                    className="adm-input"
+                    {...errorProps("prix_achat")}
+                  />
+                  <span>DA</span>
+                </div>
+                {renderFieldError("prix_achat")}
+                {saleDetails && statut === "vendue" && (
+                  <label className="adm-check-inline">
+                    <input
+                      type="checkbox"
+                      checked={saleDetails.achat_inconnu}
+                      onChange={(event) => {
+                        const checked = event.target.checked;
+                        if (checked) setPrixAchat("");
+                        setSaleDetails((previous) =>
+                          previous
+                            ? {
+                                ...previous,
+                                achat_inconnu: checked,
+                                prix_achat: checked ? null : previous.prix_achat,
+                              }
+                            : previous,
+                        );
+                      }}
+                    />
+                    Je ne sais pas
+                  </label>
+                )}
+              </div>
+
+              <div className="adm-field">
+                <label htmlFor="car-fees" className="adm-label">Frais (réparations, papiers)</label>
+                <div className="adm-input-affix">
+                  <input
+                    id="car-fees"
+                    type="number"
+                    inputMode="numeric"
+                    min="0"
+                    step="1"
+                    disabled={feesLocked}
+                    value={frais}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      setFrais(value);
+                      setSaleDetails((previous) =>
+                        previous
+                          ? {
+                              ...previous,
+                              frais: value === "" ? null : Number(value),
+                              frais_inconnus: value === "" ? previous.frais_inconnus : false,
+                            }
+                          : previous,
+                      );
+                    }}
+                    className="adm-input"
+                    {...errorProps("frais")}
+                  />
+                  <span>DA</span>
+                </div>
+                {renderFieldError("frais")}
+                {saleDetails && statut === "vendue" && (
+                  <label className="adm-check-inline">
+                    <input
+                      type="checkbox"
+                      checked={saleDetails.frais_inconnus}
+                      onChange={(event) => {
+                        const checked = event.target.checked;
+                        if (checked) setFrais("");
+                        setSaleDetails((previous) =>
+                          previous
+                            ? {
+                                ...previous,
+                                frais_inconnus: checked,
+                                frais: checked ? null : previous.frais,
+                              }
+                            : previous,
+                        );
+                      }}
+                    />
+                    Je ne sais pas
+                  </label>
+                )}
+              </div>
+
+              <div className="adm-field">
+                <label htmlFor="car-finance-notes" className="adm-label">Notes privées</label>
+                <textarea
+                  id="car-finance-notes"
+                  rows={3}
+                  maxLength={5000}
+                  value={financeNotes}
+                  onChange={(event) => {
+                    setFinanceNotes(event.target.value);
+                    setSaleDetails((previous) =>
+                      previous ? { ...previous, notes: event.target.value } : previous,
+                    );
+                  }}
+                  className="adm-input"
+                  {...errorProps("finance_notes")}
+                />
+                {renderFieldError("finance_notes")}
+              </div>
+            </div>
+          </section>
+        </aside>
+      </div>
+
+      {/* Sticky save bar */}
+      <div className="adm-savebar">
+        <p className="adm-savebar-status">
+          {isUploadingFiles
+            ? "Envoi des photos en cours…"
+            : mode === "edit"
+              ? "Les modifications seront visibles immédiatement sur le site."
+              : "Le véhicule sera publié selon le statut choisi."}
+        </p>
+        <div className="flex gap-2">
+          <Link href="/admin" className="adm-btn is-lg">
+            Annuler
+          </Link>
+          <button type="submit" disabled={saving} className="adm-btn is-primary is-lg">
+            {isPending && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
+            {isPending ? "Enregistrement…" : mode === "edit" ? "Enregistrer" : "Créer le véhicule"}
           </button>
         </div>
-
-        {/* Custom options list */}
-        {selectedOptions.filter((o) => !(POPULAR_FEATURES as readonly string[]).includes(o)).length > 0 && (
-          <div className="flex flex-wrap gap-2 pt-2">
-            {selectedOptions
-              .filter((o) => !(POPULAR_FEATURES as readonly string[]).includes(o))
-              .map((custom) => (
-                <span
-                  key={custom}
-                  className="inline-flex items-center gap-1.5 text-xs bg-red-950/60 border border-red-500/40 text-red-200 px-2.5 py-1 rounded-full"
-                >
-                  {custom}
-                  <button
-                    type="button"
-                    onClick={() => toggleOption(custom)}
-                    className="flex min-h-11 min-w-11 touch-manipulation items-center justify-center hover:text-white"
-                    aria-label={`Supprimer ${custom}`}
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </span>
-              ))}
-          </div>
-        )}
-      </div>
-
-      {/* SECTION 7: DESCRIPTION & REMARQUES SUR L'ÉTAT */}
-      <div className="bg-[#141414] border border-[#262626] rounded-2xl p-6 space-y-4">
-        <h2 className="text-xl font-bold text-white border-b border-[#262626] pb-3 flex items-center gap-2">
-          <FileText className="w-5 h-5 text-[var(--primary)]" /> Description & État (Accidents, Retouches, etc.)
-        </h2>
-        <p className="text-xs text-gray-400">
-          Détaillez ici l&apos;état exact du véhicule : présence de retouches de peinture (sbigha), pièces changées, carnet d&apos;entretien, état des pneus ou tout détail important pour l&apos;acheteur.
-        </p>
-        <textarea
-          rows={5}
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="Ex: Première main, carnet d'entretien à jour. Zéro retouche de peinture, suspension neuve, pneus neufs. Rien à prévoir..."
-          className="w-full bg-[#1E1E1E] border border-[#333] rounded-lg p-3 text-sm text-white focus:outline-none focus:border-[var(--primary)] leading-relaxed"
-        />
-      </div>
-
-      {/* SECTION 8: PARAMÈTRES AVANCÉS */}
-      <div className="bg-[#141414] border border-[#262626] rounded-2xl p-6 space-y-3">
-        <h2 className="text-sm font-semibold text-gray-300 flex items-center gap-2">
-          <SlidersHorizontal className="w-4 h-4 text-gray-400" /> Paramètres avancés (Optionnel)
-        </h2>
-        <div>
-          <label className="block text-xs font-medium text-gray-400 mb-1">
-            Identifiant d&apos;URL personnalisé (Slug)
-          </label>
-          <input
-            type="text"
-            value={slug}
-            onChange={(e) => setSlug(e.target.value)}
-            placeholder="Laisser vide pour générer automatiquement (ex: volkswagen-golf-8-2022)"
-            className="w-full bg-[#1E1E1E] border border-[#333] rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-[var(--primary)] font-mono"
-          />
-          <p className="text-[11px] text-gray-500 mt-1">
-            Si laissé vide, le système créera automatiquement un slug propre basé sur la marque, le modèle et l&apos;année.
-          </p>
-        </div>
-      </div>
-
-      {/* SUBMIT BUTTON BAR */}
-      <div className="flex items-center justify-between gap-4 pt-4 border-t border-[#333]">
-        <Link href="/admin" className="secondary-button text-sm !py-2.5 !px-5">
-          ← Retour à l&apos;inventaire
-        </Link>
-
-        <button
-          type="submit"
-          disabled={isPending || isUploadingFiles}
-          className="primary-button text-base !py-3 !px-8 min-w-[200px]"
-        >
-          {isPending
-            ? "Enregistrement en cours..."
-            : mode === "edit"
-            ? "Mettre à jour la voiture"
-            : "Créer et publier la voiture"}
-        </button>
       </div>
 
       {saleDialogOpen && initialCar && (
